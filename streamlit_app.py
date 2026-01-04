@@ -238,7 +238,7 @@ res = st.session_state.result
 # Icons map (Text fallback for Streamlit)
 ICONS = {'Sun': '☀️', 'Moon': '🌙', 'CloudRain': '🌧️', 'CloudFog': '🌫️', 'Snowflake': '❄️'} # Simplified
 
-def render_card_html(scenario, is_winner=None, show_result=False):
+def render_card_html(scenario, is_winner=None, show_result=False, override_score=None):
     # Determine Border Color
     border_style = "border: 1px solid rgba(255, 255, 255, 0.1);"
     bg_style = "background-color: #181a20;"
@@ -291,10 +291,12 @@ def render_card_html(scenario, is_winner=None, show_result=False):
 
     if show_result:
         score_color = "#10b981" if is_winner else "#ef4444"
+        display_score = override_score if override_score is not None else int(scenario['riskScore'])
+        
         res_html = f"""
         <div style="margin-top: 1rem; text-align: center; background: {score_color}10; border-radius: 8px; padding: 1rem; border: 1px solid {score_color};">
-            <div style="color: #9ca3af; font-size: 0.9rem;">Predicted Risk</div>
-            <div style="font-size: 2rem; font-weight: 800; color: {score_color};">{int(scenario['riskScore'])}%</div>
+            <div style="color: #9ca3af; font-size: 0.9rem;">Relative Risk</div>
+            <div style="font-size: 2rem; font-weight: 800; color: {score_color};">{display_score}%</div>
         </div>
         """
         html += res_html.replace("\n", "").replace("    ", "")
@@ -326,9 +328,19 @@ def handle_choice(chose_left):
 # Columns: Card | vs | Card
 c_left, c_mid, c_right = st.columns([10, 2, 10])
 
+# Calculate Relative Risk (Total = 100%)
+total_risk = rd['left']['riskScore'] + rd['right']['riskScore']
+left_rel = int((rd['left']['riskScore'] / total_risk) * 100) if total_risk > 0 else 50
+right_rel = 100 - left_rel # Ensure sum is 100
+
 with c_left:
     is_left_winner = res['winner'] if res else False
-    st.markdown(render_card_html(rd['left'], is_left_winner if res else None, res is not None), unsafe_allow_html=True)
+    st.markdown(render_card_html(
+        rd['left'], 
+        is_left_winner if res else None, 
+        res is not None,
+        override_score=left_rel 
+    ), unsafe_allow_html=True)
     
     if res is None:
         if st.button("SELECT ROUTE", key="left_btn"):
@@ -339,7 +351,12 @@ with c_mid:
 
 with c_right:
     is_right_winner = not res['winner'] if res else False
-    st.markdown(render_card_html(rd['right'], is_right_winner if res else None, res is not None), unsafe_allow_html=True)
+    st.markdown(render_card_html(
+        rd['right'], 
+        is_right_winner if res else None, 
+        res is not None,
+        override_score=right_rel
+    ), unsafe_allow_html=True)
     
     if res is None:
         if st.button("SELECT ROUTE", key="right_btn"):
