@@ -16,13 +16,38 @@ try:
     df = pd.DataFrame(data)
 
     def calculate_synthetic_risk(row):
-        score = 10 + (row['speed'] * 0.4) + (row['curvature'] * 30)
-        if row['roadType'] == 'Highway': score -= 10
-        if row['roadType'] == 'Urban': score += 5
-        if row['roadType'] == 'Rural': score += 10
-        if row['weather'] != 'Clear': score += 15
-        if row['lighting'] == 'Night': score += 20
-        score += np.random.normal(0, 5)
+        score = 5 # Base score
+        
+        # Speed: Core driver of risk (15-60 points)
+        score += row['speed'] * 0.5 
+
+        # Curvature: (0-40 points)
+        score += row['curvature'] * 40 
+
+        # Road Type Modifiers
+        if row['roadType'] == 'Highway': score -= 5   # Safer infra
+        if row['roadType'] == 'Urban': score += 10    # Pedestrians/Traffic
+        if row['roadType'] == 'Rural': score += 5     # Unpredictable
+
+        # Weather (Significant Impact)
+        if row['weather'] == 'Snow': score += 40      # Very dangerous
+        elif row['weather'] == 'Fog': score += 25
+        elif row['weather'] == 'Rain': score += 15
+        
+        # Lighting
+        if row['lighting'] == 'Night': score += 10
+        elif row['lighting'] == 'Dusk': score += 5
+
+        # Interactive Penalties (The "Killer" combos)
+        # High speed in bad weather is deadly
+        if row['speed'] > 70 and row['weather'] in ['Snow', 'Rain', 'Fog']: 
+            score += 20
+            
+        # Curvy rural roads at night
+        if row['roadType'] == 'Rural' and row['curvature'] > 0.5 and row['lighting'] == 'Night':
+            score += 15
+
+        score += np.random.normal(0, 3) # Reduced noise
         return min(99, max(1, score))
 
     df['risk'] = df.apply(calculate_synthetic_risk, axis=1)
